@@ -750,3 +750,185 @@ void AATree<KEY, OTHER>::RR(AAnode*& t)
 		t->level++;
 	}
 }
+
+template<class KEY,class OTHER>
+class closeHashTable :public dynamicSearchTable<KEY, OTHER>
+{
+private:
+	struct node
+	{
+		SET<KEY, OTHER> data;
+		int state;        //0--empty 1--active 2--deleted
+		node() { state = 0; }
+	};
+	node* aray;
+	int size;
+	int (*key)(const KEY& x);
+	static int defaultKey(const int& x) { return x; }
+public:
+	closeHashTable(int length = 101, int (*f)(const KEY& x) = defaultKey);
+	~closeHashTable() { delete[]aray; }
+	SET<KEY, OTHER>* find(const KEY& x)const;
+	void insert(const SET<KEY, OTHER>& x);
+	void remove(const KEY& x);
+};
+
+template<class KEY, class OTHER>
+closeHashTable<KEY, OTHER>::closeHashTable(int length, int(*f)(const KEY& x))
+{
+	size = length;
+	key = f;
+	aray = new node[size];
+}
+
+template<class KEY, class OTHER>
+SET<KEY, OTHER>* closeHashTable<KEY, OTHER>::find(const KEY& x) const
+{
+	int initPos, pos;
+	initPos = pos = key(x) % size;
+	do
+	{
+		if (aray[pos].state == 0) return nullptr;
+		if (aray[pos].state == 1 && aray[pos].data.key == x)
+			return (SET<KEY, OTHER>*)&aray[pos];
+		pos = (pos + 1) % size;
+	} while (pos!=initPos);
+}
+
+template<class KEY, class OTHER>
+void closeHashTable<KEY, OTHER>::insert(const SET<KEY, OTHER>& x)
+{
+	int initPos, pos;
+
+	initPos = pos = key(x.key) % size;
+	do
+	{
+		if (aray[pos].state != 1)
+		{
+			aray[pos].data = x;
+			aray[pos].state = 1;
+			return;
+		}
+		pos = (pos + 1) % size;
+	} while (pos!=initPos);
+}
+
+template<class KEY, class OTHER>
+void closeHashTable<KEY, OTHER>::remove(const KEY& x)
+{
+	int initPos, pos;
+	initPos = pos = key(x) % size;
+
+	do
+	{
+		if (aray[pos].state == 0) return;
+		if (aray[pos].state == 1 && aray[pos].data.key == x)
+		{
+			aray[pos].state = 2;
+			return;
+		}
+		pos = (pos + 1) % size;
+	} while (pos!=initPos);
+}
+
+template<class KEY,class OTHER>
+class openHashTable :public dynamicSearchTable<KEY, OTHER>
+{
+private:
+	struct node
+	{
+		SET<KEY, OTHER> data;
+		node* next;
+		node(const SET<KEY, OTHER>& d, node* n = nullptr) { data = d; next = n; }
+		node() { next = nullptr; }
+	};
+
+	node** aray;     //指针数组
+	int size;
+	int (*key)(const KEY& x);
+	static int defaultKey(const int& x) { return x; }
+public:
+	openHashTable(int length = 101, int (*f)(const KEY& x) = defaultKey);
+	~openHashTable();
+	SET<KEY, OTHER>* find(const KEY& x)const;
+	void insert(const SET<KEY, OTHER>& x);
+	void remove(const KEY& x);
+};
+
+template<class KEY, class OTHER>
+openHashTable<KEY, OTHER>::openHashTable(int length, int(*f)(const KEY& x))
+{
+	size = length;
+	key = f;
+	aray = new node * [size];
+	for (int i = 0; i < size; ++i)
+		aray[i] = nullptr;
+}
+
+template<class KEY, class OTHER>
+openHashTable<KEY, OTHER>::~openHashTable()
+{
+	node* p, * q;
+	for (int i = 0; i < size; ++i)
+	{
+		p = aray[i];
+		while (p != nullptr)
+		{
+			q = p->next;
+			delete p;
+			p = q;
+		}
+	}
+	delete[]aray;
+}
+
+template<class KEY, class OTHER>
+SET<KEY, OTHER>* openHashTable<KEY, OTHER>::find(const KEY& x) const
+{
+	int pos;
+	pos = key(x) % size;
+
+	node* p = aray[pos];
+	if (p == nullptr) return nullptr;
+	while (p != nullptr && p->data.key != x) p = p->next;
+	if (p == nullptr) return nullptr;
+	else return (SET<KEY, OTHER>*) p;
+}
+
+template<class KEY, class OTHER>
+void openHashTable<KEY, OTHER>::insert(const SET<KEY, OTHER>& x)
+{
+	int pos;
+	node* p;
+	pos = key(x.key) % size;
+	aray[pos] = new node(x, aray[pos]);
+}
+
+template<class KEY, class OTHER>
+void openHashTable<KEY, OTHER>::remove(const KEY& x)
+{
+	int pos;
+	node* p, * q;
+	pos = key(x) % size;
+
+	p = aray[pos];
+	//第一个就是要删除的元素
+	if (p!=nullptr&&p->data.key == x)
+	{
+		aray[pos] = p->next;
+		delete p;
+		return;
+	}
+	//往后找
+	while (p->next != nullptr)
+	{
+		if (p->next->data.key == x)
+		{
+			q = p->next;
+			p->next = q->next;
+			delete q;
+			return;
+		}
+		p = p->next;
+	}
+}
